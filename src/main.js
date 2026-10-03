@@ -9,6 +9,7 @@ import { Sound } from './audio.js';
 import { Whale, Jelly, Eel, Angler, Kraken, School } from './creatures.js';
 import { buildPort, buildNpcHome, Beacon, Pickup, Geyser, Storm } from './structures.js';
 import { HUD, Dialog, Shop, Chart } from './ui.js';
+import { TouchControls } from './touch.js';
 import { newSave, loadSave, writeSave, clearSave, SEGS } from './save.js';
 import { TAU, clamp, damp, dampAngle, lerp, wrapAngle, smoothstep, rand } from './util.js';
 import { glowSprite, SHARED } from './toon.js';
@@ -87,6 +88,7 @@ class Game {
     this.dialog = new Dialog();
     this.shop = new Shop();
     this.chart = new Chart();
+    this.touch = new TouchControls(this);
 
     this.worlds = WORLDS.map((d) => new World(d));
     for (const w of this.worlds) this.scene.add(w.group);
@@ -216,6 +218,8 @@ class Game {
     this.composer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
     this.composer.setSize(innerWidth, innerHeight);
     this.camera.aspect = innerWidth / innerHeight;
+    // Portrait phones: widen the vertical FOV so there's still some sea either side of the sub.
+    this.camera.fov = this.camera.aspect < 1 ? 50 + (1 - this.camera.aspect) * 40 : 50;
     this.camera.updateProjectionMatrix();
     if (this.chart.open) this.chart.draw();
   }
@@ -257,6 +261,7 @@ class Game {
     const pad = this.pollPad();
     if (pad && (pad.x || pad.y)) { x = pad.x; y = pad.y; }
     if (pad && pad.boost) boost = true;
+    if (this.touch.active) { if (this.touch.x || this.touch.y) { x = this.touch.x; y = this.touch.y; } boost = boost || this.touch.boost; }
     return { x, y, boost };
   }
   onDigit(n) {
@@ -280,6 +285,7 @@ class Game {
     };
     $('btnMute').onclick = () => { this.sound.setMuted(!this.sound.muted); $('btnMute').textContent = `Sound: ${this.sound.muted ? 'off' : 'on'}`; };
     $('btnRespawn').onclick = () => this.respawnFromDeath();
+    $('chartClose').onclick = () => { this.chart.close(); this.setState('play'); };
     this.buildTitle();
   }
   buildTitle() {
@@ -487,6 +493,7 @@ class Game {
     this.setCamera(tx, ty, 72, a);
     this.updateWorlds(dt, true, { x: tx, y: ty });
     this.sky(w, r, 0.85, false, dt);
+    this.touch.show(false);
     if (this.edges.has('enter')) this.begin(!loadSave());
   }
 
@@ -565,6 +572,7 @@ class Game {
     this.sound.frame({ under: e.subm > 0.6, thrust: this.state === 'play' ? sub.thrust : 0, speed: sub.speed, boost: sub.boosting && this.state === 'play', space: e.space, storm: e.space ? 0 : w.weather.storm, rain: e.space ? 0 : w.weather.rain });
     this.hud.update(this);
     this.hud.drawArrows(this);
+    this.touch.show(this.state === 'play');
     this.saveT += dt;
     if (this.saveT > 6 && this.state === 'play') { this.saveT = 0; writeSave(this.save); }
     void e0;
@@ -694,7 +702,8 @@ class Game {
       const d = Math.hypot(p.x - s.pos.x, p.y - s.pos.y);
       if (d < it.radius && d < bd) { best = it; bd = d; }
     }
-    this.hud.prompt(best ? `E — ${best.label}` : null);
+    this.hud.prompt(best ? `${this.touch.active ? '' : 'E — '}${best.label}` : null);
+    this.touch.setActLabel(best ? { port: 'Dock', npc: 'Visit', talk: 'Hail' }[best.kind] : null);
     if (best && (this.edges.has('act') || this.edges.has('enter'))) {
       if (best.kind === 'port') {
         this.save.lastPort = best.id;

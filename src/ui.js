@@ -312,9 +312,26 @@ export class Chart {
     this.zoom = 1; this.pan = { x: 0, y: 0 };
     let drag = null;
     this.canvas.addEventListener('wheel', (e) => { e.preventDefault(); this.zoom = Math.min(8, Math.max(0.3, this.zoom * Math.exp(-e.deltaY * 0.0015))); this.draw(); }, { passive: false });
-    this.canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y }; this.canvas.style.cursor = 'grabbing'; });
-    addEventListener('pointerup', () => { drag = null; this.canvas.style.cursor = 'grab'; });
-    addEventListener('pointermove', (e) => { if (!drag || !this.open) return; this.pan.x = drag.px + (e.clientX - drag.x); this.pan.y = drag.py + (e.clientY - drag.y); this.draw(); });
+    // One finger/mouse pans; two fingers pinch-zoom.
+    const pts = new Map();
+    let pinch = null;
+    const spread = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    this.canvas.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) { drag = null; pinch = { d: spread(), z: this.zoom }; }
+      else drag = { x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y };
+      this.canvas.style.cursor = 'grabbing';
+    });
+    const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; drag = null; this.canvas.style.cursor = 'grab'; };
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+    addEventListener('pointermove', (e) => {
+      if (!this.open) return;
+      if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && pts.size === 2) { this.zoom = Math.min(8, Math.max(0.3, (pinch.z * spread()) / pinch.d)); this.draw(); return; }
+      if (!drag) return;
+      this.pan.x = drag.px + (e.clientX - drag.x); this.pan.y = drag.py + (e.clientY - drag.y); this.draw();
+    });
   }
   start(g) {
     this.g = g;
