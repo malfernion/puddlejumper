@@ -11,21 +11,63 @@ import { buildPort, buildNpcHome, Beacon, Pickup, Geyser, Storm } from './struct
 import { HUD, Dialog, Shop, Chart } from './ui.js';
 import { newSave, loadSave, writeSave, clearSave, SEGS } from './save.js';
 import { TAU, clamp, damp, dampAngle, lerp, wrapAngle, smoothstep, rand } from './util.js';
-import { glowSprite } from './toon.js';
+import { glowSprite, SHARED } from './toon.js';
+import { Rain, Lightning } from './weather.js';
+import { Floater } from './floaters.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uFlash: { value: 0 }, uStorm: { value: 0 }, uUnder: { value: 0 }, uHurt: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse; uniform float uTime, uFlash, uStorm, uUnder, uHurt; varying vec2 vUv;
+    void main(){
+      vec2 d = vUv - 0.5;
+      float ca = dot(d, d) * 0.006 * (1.0 + uUnder);
+      vec3 c = vec3(texture2D(tDiffuse, vUv + d * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * ca).b);
+      float l = dot(c, vec3(0.299, 0.587, 0.114));
+      c = mix(vec3(l), c, 0.8 - 0.3 * uStorm);
+      c = mix(c, c * vec3(0.86, 1.0, 1.08), (1.0 - l) * 0.45);
+      c = mix(c, c * vec3(1.1, 1.0, 0.86), l * 0.3);
+      c = (c - 0.5) * 1.06 + 0.5;
+      c *= 1.0 - dot(d, d) * (1.25 + uUnder * 0.6 + uStorm * 0.5);
+      c = mix(c, c * vec3(1.4, 0.45, 0.45), uHurt * dot(d, d) * 3.0);
+      c += uFlash * vec3(0.75, 0.8, 0.95) * 0.55;
+      float n = fract(sin(dot(vUv * vec2(1231.7, 4321.3) + fract(uTime) * 91.0, vec2(12.9898, 78.233))) * 43758.5453);
+      c += (n - 0.5) * 0.05;
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+};
 
 const $ = (id) => document.getElementById(id);
 const DEBUG = new URLSearchParams(location.search).has('debug');
-const SPACE_BG = new THREE.Color('#0b1030');
+const SPACE_BG = new THREE.Color('#070a1c');
+const STORM_SKY = new THREE.Color('#3b4048');
+const SUN_COL = new THREE.Color('#fff1dc');
 
 class Game {
   constructor() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
     $('app').appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#8fd8ff');
+    this.scene.fog = new THREE.Fog(0x8fd8ff, 60, 300);
     this.camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 8000);
+    const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { samples: 4, type: THREE.HalfFloatType });
+    this.composer = new EffectComposer(this.renderer, rt);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.composer.addPass(new OutputPass());
+    this.grade = new ShaderPass(GradeShader);
+    this.composer.addPass(this.grade);
+    this.rain = new Rain(this.scene);
+    this.lightning = new Lightning(this.scene);
     this.camBasis = { rx: 1, ry: 0, ux: 0, uy: 1 };
     this.camUp = Math.PI / 2;
     this.camDist = 40;
@@ -105,7 +147,13 @@ class Game {
       const d = w.def;
       for (const p of d.ports) {
         const g = buildPort(w, p);
-        w.things.push({ update: (dt) => { g.traverse((o) => { if (o.userData.spin) o.rotation.z = Math.sin(w.t * o.userData.spin) * 1.1; if (o.userData.waddle !== undefined) o.rotation.z = Math.sin(w.t * 6 + o.userData.waddle) * 0.15; }); if (g.userData.steam && Math.random() < 0.2) { const v = g.localToWorld(g.userData.steam.clone()); this.fx.puff(v.x, v.y, 0xffffff, 1, 1.2); } } });
+        w.things.push({ update: (dt) => { g.traverse((o) => { if (o.userData.spin) o.rotation.z = Math.PI + Math.sin(w.t * o.userData.spin * 0.6) * 1.35; if (o.userData.waddle !== undefined) o.rotation.z = Math.sin(w.t * 6 + o.userData.waddle) * 0.15; }); if (g.userData.steam && Math.random() < 0.25) { const v = g.localToWorld(g.userData.steam.clone()); this.fx.puff(v.x, v.y, 0xe8e4dc, 1, 1.4); }
+          for (const s of g.userData.smoke) {
+            if (Math.random() > 0.12) continue;
+            const v = g.localToWorld(s.clone()), [sth] = w.polar(v.x, v.y), wind = w.weather.windAccel * 0.4;
+            const ux = Math.cos(sth), uy = Math.sin(sth);
+            this.fx.spawn({ x: v.x, y: v.y, z: v.z, vx: ux * 1.6 - uy * wind, vy: uy * 1.6 + ux * wind, drag: 0.4, life: rand(2.5, 4), size: 0.6, size1: 2.6, color: 0x4a4744, alpha: 0.45 });
+          } } });
         this.interact.push({ kind: 'port', id: p.id, w, th: p.at, r: w.R - 1, radius: 12, label: `Dock at ${this.portName(p.id)}` });
       }
       for (const n of d.npcs) {
@@ -146,6 +194,12 @@ class Game {
         this.pickups.push(new Pickup(w, id, c.at, w.ground(c.at) + 1.2, 'crate'));
       });
       (d.geysers || []).forEach((a, i) => w.things.push(new Geyser(w, a, i)));
+      // Flotsam: physics bodies riding the waves.
+      w.floaters = [];
+      const kinds = ['barrel', 'barrel', 'log', 'crate', 'barrel', 'log', 'crate'];
+      const addF = (kind, th) => { if (w.ground(th) > w.R - 3) return; const f = new Floater(w, kind, th); w.floaters.push(f); this.scene.add(f.root); };
+      for (const p of d.ports) { addF('buoy', p.at + 0.14); addF('buoy', p.at - 0.16); }
+      for (let i = 0; i < (d.flotsam ?? 6); i++) addF(kinds[i % kinds.length], rng() * TAU);
       if (d.storm) {
         this.storm = new Storm(w, this.scene);
         this.storm.setActive(this.litCount() < 4);
@@ -159,6 +213,8 @@ class Game {
 
   resize() {
     this.renderer.setSize(innerWidth, innerHeight);
+    this.composer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.composer.setSize(innerWidth, innerHeight);
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
     if (this.chart.open) this.chart.draw();
@@ -255,7 +311,7 @@ class Game {
 
   /** Rebuild every world's populated content for a fresh save. */
   resetWorlds(save) {
-    for (const w of this.worlds) this.scene.remove(w.group);
+    for (const w of this.worlds) { this.scene.remove(w.group); for (const f of w.floaters || []) this.scene.remove(f.root); }
     this.worlds = WORLDS.map((d) => new World(d));
     for (const w of this.worlds) this.scene.add(w.group);
     this.kraken = null; this.storm = null;
@@ -399,7 +455,7 @@ class Game {
     if (this.state === 'title') this.titleFrame(dt);
     else this.playFrame(dt);
     this.shop.frame(this.t);
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
     this.edges.clear();
   }
 
@@ -414,21 +470,23 @@ class Game {
       this.edges.clear();
     }
     this.forced = null;
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
     const s = this.sub, e = s.env;
+    if (!e) return { state: this.state };
     return { state: this.state, x: +s.pos.x.toFixed(1), y: +s.pos.y.toFixed(1), speed: +s.speed.toFixed(1), world: e.w.id, alt: +(e.r - e.surf).toFixed(1), depth: +e.below.toFixed(1), subm: +e.subm.toFixed(2), hull: +s.hull.toFixed(1), fuel: +s.fuel.toFixed(2), space: e.space };
   }
 
   titleFrame(dt) {
     this.titleT += dt;
     const w = this.worlds[0];
-    const a = Math.PI / 2 + Math.sin(this.titleT * 0.05) * 0.6;
-    const r = w.R + 10;
+    const a = Math.PI / 2 + Math.sin(this.titleT * 0.04) * 0.12;
+    const r = w.R + 3;
     this.camUp = a;
     const tx = w.c.x + Math.cos(a) * r, ty = w.c.y + Math.sin(a) * r;
-    this.setCamera(tx, ty, 150, a);
+    this.camDist = 72;
+    this.setCamera(tx, ty, 72, a);
     this.updateWorlds(dt, true, { x: tx, y: ty });
-    this.sky(w, r, 0.85);
+    this.sky(w, r, 0.85, false, dt);
     if (this.edges.has('enter')) this.begin(!loadSave());
   }
 
@@ -493,7 +551,7 @@ class Game {
 
     const light = e.space || e.subm < 0.5 ? 1 : smoothLight(e.below, w.R);
     this.light = light;
-    this.sky(w, e.r, light);
+    this.sky(w, e.r, light, e.subm > 0.5, this.state === 'play' ? dt : 0);
     this.updateWorlds(dt, this.state === 'play', sub.pos);
     sub.render(dt, this, light);
 
@@ -504,7 +562,7 @@ class Game {
       this.discover(dt, e);
     }
     this.fx.update(this.state === 'play' || this.state === 'title' ? dt : 0, this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * Math.PI) / 360)));
-    this.sound.frame({ under: e.subm > 0.6, thrust: this.state === 'play' ? sub.thrust : 0, speed: sub.speed, boost: sub.boosting && this.state === 'play', space: e.space });
+    this.sound.frame({ under: e.subm > 0.6, thrust: this.state === 'play' ? sub.thrust : 0, speed: sub.speed, boost: sub.boosting && this.state === 'play', space: e.space, storm: e.space ? 0 : w.weather.storm, rain: e.space ? 0 : w.weather.rain });
     this.hud.update(this);
     this.hud.drawArrows(this);
     this.saveT += dt;
@@ -523,13 +581,54 @@ class Game {
     this.sun.target.position.set(x, y, 0);
   }
 
-  sky(w, r, light) {
+  /** Sky colour, lighting, fog, weather effects and shared shader uniforms for this frame. */
+  sky(w, r, light, under = false, dt = 0) {
     const sky = 1 - smoothstep(w.R + w.A * 0.4, w.R + w.A + w.F * 0.55, r);
-    this.scene.background.copy(SPACE_BG).lerp(w.pal.sky, sky);
+    const storm = w.weather.storm * sky;
+    const skyCol = w.pal.sky.clone().lerp(STORM_SKY, storm * 0.8);
+    this.scene.background.copy(SPACE_BG).lerp(skyCol, sky);
     this.starMat.opacity = 1 - sky;
     for (const n of this.nebulae) n.material.opacity = (1 - sky) * 0.35;
-    this.hemi.intensity = 0.35 + 1.5 * light;
-    this.sun.intensity = 0.3 + 2.0 * light;
+    const dim = 1 - storm * (under ? 0.35 : 0.55);
+    this.hemi.intensity = (0.3 + 1.3 * light) * dim;
+    this.sun.intensity = (0.25 + 2.4 * light) * (1 - storm * 0.75);
+    this.sun.color.copy(SUN_COL).lerp(STORM_SKY, storm);
+    // Depth haze: layers further into the screen fade toward the water or sky colour.
+    const fog = this.scene.fog, d = this.camDist;
+    if (under) {
+      fog.color.copy(w.pal.waterDeep).lerp(w.pal.abyss, 1 - light).multiplyScalar(0.5 + 0.5 * light);
+      fog.near = d * 0.6; fog.far = d + 30 + 60 * light;
+    } else {
+      fog.color.copy(this.scene.background);
+      fog.near = d * 1.05 + 10 - storm * 15; fog.far = sky > 0.5 ? d * 1.6 + 110 - storm * 70 : 6000;
+    }
+    SHARED.uTime.value = this.t;
+    SHARED.uWorldC.value.set(w.c.x, w.c.y, 0);
+    SHARED.uSurfR.value = w.R;
+    SHARED.uCaustic.value = sky * (1 - storm * 0.7);
+    // Weather: rain box around the camera, lightning, thunder.
+    const half = d * 0.75 + 10;
+    this.rain.update(dt, w, this.camera.position.x, this.camera.position.y, half, this.fx);
+    this.lightning.update(dt);
+    if (w.weather.storm > 0.6 && sky > 0.3 && dt > 0) {
+      this.lightning.timer -= dt;
+      if (this.lightning.timer <= 0) {
+        this.lightning.timer = rand(2.5, 9) / w.weather.storm;
+        const [cth] = w.polar(this.camera.position.x, this.camera.position.y);
+        const th = cth + rand(-0.4, 0.4) * (60 / w.R);
+        this.lightning.strike(w, th);
+        const dist = Math.hypot(w.c.x + Math.cos(th) * w.R - this.sub.pos.x, w.c.y + Math.sin(th) * w.R - this.sub.pos.y);
+        setTimeout(() => this.sound.thunder(), Math.min(2500, dist * 8));
+        w.splash(th, -6, 4);
+      }
+    }
+    const u = this.grade.uniforms;
+    u.uTime.value = this.t;
+    u.uFlash.value = this.lightning.flash * sky * (under ? 0.4 : 1);
+    u.uStorm.value = storm;
+    u.uUnder.value = under ? 1 : 0;
+    u.uHurt.value = this.hurtFlash || 0;
+    this.storminess = storm;
   }
 
   updateWorlds(dt, simulate, focus) {
@@ -555,7 +654,9 @@ class Game {
         for (const c of w.creatures) c.update(dt, ctx);
         for (const t of w.things) t.update(dt, ctx);
         for (const p of this.pickups) if (p.w === w) p.update(dt);
+        for (let s = 0; s < 2; s++) for (const f of w.floaters) f.step(dt / 2, this.sub, this, w.floaters);
       }
+      if (visible) for (const f of w.floaters) f.render(w.t);
     }
   }
 

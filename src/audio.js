@@ -41,6 +41,9 @@ export class Sound {
     this.engineOsc = { osc, g: og };
     this.rocket = this.loopNoise(900, 1.2, 0);
     this.wash = this.loopNoise(500, 0.4, 0.04);
+    this.windL = this.loopNoise(380, 0.7, 0);
+    this.rainL = this.loopNoise(5200, 0.3, 0);
+    this.storm = 0;
     this.nextNote = c.currentTime + 0.5;
   }
 
@@ -78,7 +81,14 @@ export class Sound {
     this.engineOsc.osc.frequency.setTargetAtTime(40 + o.speed * 3, t, 0.1);
     this.rocket.g.gain.setTargetAtTime(o.boost ? 0.35 : 0, t, 0.05);
     this.rocket.f.frequency.setTargetAtTime(o.boost ? 700 + Math.random() * 300 : 500, t, 0.05);
-    this.wash.g.gain.setTargetAtTime(o.space ? 0 : o.under ? 0.07 : 0.05, t, 0.4);
+    const storm = o.storm || 0, rain = o.rain || 0;
+    this.storm = storm;
+    this.wash.g.gain.setTargetAtTime(o.space ? 0 : (o.under ? 0.07 : 0.05) * (1 + storm * 3), t, 0.4);
+    this.wash.f.frequency.setTargetAtTime(500 - storm * 250, t, 0.4);
+    const gust = 0.6 + 0.4 * Math.sin(t * 0.7) * Math.sin(t * 1.9 + 1);
+    this.windL.g.gain.setTargetAtTime(storm * storm * 0.3 * gust * (o.under ? 0.4 : 1), t, 0.3);
+    this.windL.f.frequency.setTargetAtTime(260 + gust * 420 * storm, t, 0.3);
+    this.rainL.g.gain.setTargetAtTime(rain * (o.under ? 0.03 : 0.12), t, 0.5);
     this.music(t);
   }
 
@@ -130,17 +140,31 @@ export class Sound {
   growl() { this.tone(60, 1.2, { type: 'sawtooth', to: 40, vol: 0.12, attack: 0.2 }); this.noise(1, { freq: 200, vol: 0.15 }); }
   zap() { this.noise(0.2, { freq: 3000, type: 'bandpass', q: 4, vol: 0.2 }); this.tone(1200, 0.15, { type: 'square', to: 300, vol: 0.05 }); }
   geyser() { this.noise(1.6, { freq: 300, to: 2000, vol: 0.3, type: 'bandpass', q: 0.8 }); }
-  thunder() { this.noise(2.5, { freq: 400, to: 60, vol: 0.5 }); }
+  thunder() {
+    this.noise(0.25, { freq: 2500, to: 400, vol: 0.35 });
+    this.noise(3.5, { freq: 300, to: 40, vol: 0.6, delay: 0.1 });
+    this.noise(2.0, { freq: 150, to: 50, vol: 0.4, delay: 0.6 });
+  }
   beacon() { [0, 4, 7, 11, 14].forEach((s, i) => this.tone(mtof(60 + s), 3.5, { type: 'sine', vol: 0.12, attack: 0.4, delay: i * 0.15, verb: 1 })); }
   launch() { this.noise(0.6, { freq: 300, to: 3000, vol: 0.3, type: 'bandpass', q: 1 }); }
 
   /** Generative pentatonic noodling that follows the current world's mood. */
   music(now) {
     if (!this.ctx || now < this.nextNote - 0.05) return;
-    const m = this.mood, beat = 60 / (70 * m.tempo + 40);
+    // Storms pull the music down a minor third into a darker, slower minor mode.
+    const dark = this.storm > 0.5;
+    const m = dark ? { ...this.mood, root: this.mood.root - 3, scale: [0, 3, 5, 7, 10], tempo: this.mood.tempo * 0.7, wave: 'sine' } : this.mood;
+    const beat = 60 / (70 * m.tempo + 40);
     const t = Math.max(this.nextNote, now);
     this.step++;
     const pick = (o) => mtof(m.root + o + m.scale[Math.floor(Math.random() * m.scale.length)]);
+    if (dark && this.step % 32 === 1) {
+      const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+      o.type = 'sawtooth'; o.frequency.value = mtof(m.root - 36);
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 3); g.gain.exponentialRampToValueAtTime(0.0001, t + beat * 30);
+      o.connect(f); f.connect(g); g.connect(this.musicBus); o.start(t); o.stop(t + beat * 31);
+    }
     const voice = (f, dur, vol, type = m.wave, at = 0) => {
       const c = this.ctx, o = c.createOscillator(), g = c.createGain();
       o.type = type; o.frequency.value = f;

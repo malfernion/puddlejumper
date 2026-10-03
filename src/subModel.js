@@ -1,15 +1,15 @@
 import * as THREE from 'three';
-import { toon, outline, glowSprite } from './toon.js';
+import { toon, metal, outline, glowSprite } from './toon.js';
 
 const brass = '#e0a93b', steel = '#b8c4d6', dark = '#3a3f58';
 
 function propeller(blades = 3, r = 0.7) {
   const g = new THREE.Group();
-  const hub = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 10), toon(brass));
+  const hub = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 10), metal(brass, { metal: 0.85, rough: 0.35, grime: 0.6 }));
   hub.rotation.z = Math.PI / 2; hub.position.x = -0.15;
   g.add(hub);
   for (let i = 0; i < blades; i++) {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, r, 0.32), toon(brass));
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, r, 0.32), metal(brass, { metal: 0.85, rough: 0.35, grime: 0.6 }));
     b.position.y = r / 2;
     const arm = new THREE.Group();
     arm.rotation.x = (i / blades) * Math.PI * 2;
@@ -23,7 +23,7 @@ function propeller(blades = 3, r = 0.7) {
 function porthole(x, y, z, r = 0.38) {
   const g = new THREE.Group();
   for (const s of [1, -1]) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.09, 8, 20), toon(brass));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.09, 8, 20), metal(brass, { metal: 0.85, rough: 0.35, grime: 0.6 }));
     ring.position.set(x, y, z * s);
     const glass = new THREE.Mesh(new THREE.CircleGeometry(r, 20), new THREE.MeshBasicMaterial({ color: '#a8f0ff' }));
     glass.position.set(x, y, z * s + 0.02 * s);
@@ -44,7 +44,7 @@ export function buildSub(equip) {
   const body = new THREE.Group();
   root.add(body);
   const paint = equip.paint || '#ffd23f';
-  const P = toon(paint);
+  const P = metal(paint, { metal: 0.25, rough: 0.6, grime: 0.75, scale: 1.1 });
   let half = 1.8, hz = 1.0, top = 1.0;
 
   if (equip.hull === 'bathy') {
@@ -56,7 +56,7 @@ export function buildSub(equip) {
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * Math.PI * 2;
       for (const s of [1, -1]) {
-        const bolt = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), toon(dark));
+        const bolt = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), metal(dark));
         bolt.position.set(0.35 + Math.cos(a) * 0.62, Math.sin(a) * 0.62, 1.2 * s);
         bolt.userData.noOutline = true;
         body.add(bolt);
@@ -68,7 +68,7 @@ export function buildSub(equip) {
     const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), P);
     hull.scale.set(2.1, 0.78, 1.25);
     body.add(hull);
-    const ridge = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), toon(dark));
+    const ridge = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), metal(dark));
     ridge.scale.set(1.4, 0.35, 0.3); ridge.position.set(-0.3, 0.65, 0);
     body.add(ridge);
     const cheek = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), toon('#ffffff'));
@@ -81,7 +81,7 @@ export function buildSub(equip) {
     hull.rotation.z = Math.PI / 2;
     body.add(hull);
     for (const x of [-0.7, 0.2]) {
-      const band = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.07, 8, 28), toon(steel));
+      const band = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.07, 8, 28), metal(steel));
       band.rotation.y = Math.PI / 2; band.position.x = x;
       band.userData.noOutline = true;
       body.add(band);
@@ -90,15 +90,45 @@ export function buildSub(equip) {
     half = 1.85;
   }
 
+  // Rivet rows and plate seams (instanced so they're cheap).
+  {
+    const rv = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 6, 4), metal(steel, { grime: 0.5 }), 120);
+    const m4 = new THREE.Matrix4();
+    let n = 0;
+    const ringR = equip.hull === 'bathy' ? 1.35 : equip.hull === 'ray' ? 0.0 : 1.0;
+    if (ringR) {
+      const xs = equip.hull === 'bathy' ? [-0.55, 0.55] : [-1.15, -0.25, 0.65];
+      for (const x of xs) {
+        const rr = equip.hull === 'bathy' ? Math.sqrt(Math.max(0, ringR * ringR - x * x)) + 0.01 : ringR + 0.01;
+        for (let i = 0; i < 26 && n < 120; i++) { const a = (i / 26) * Math.PI * 2; m4.makeTranslation(x, Math.cos(a) * rr, Math.sin(a) * rr); rv.setMatrixAt(n++, m4); }
+      }
+    } else {
+      for (let i = 0; i < 40 && n < 120; i++) { const a = (i / 40) * Math.PI * 2; m4.makeTranslation(Math.cos(a) * 2.0, Math.sin(a) * 0.2, Math.sin(a) * 0.0 + (i % 2 ? 0.9 : -0.9) * Math.abs(Math.cos(a))); rv.setMatrixAt(n++, m4); }
+    }
+    rv.count = n;
+    body.add(rv);
+    // Hatch wheel on top.
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 6, 16), metal(brass, { metal: 0.85, rough: 0.35 }));
+    wheel.rotation.x = Math.PI / 2; wheel.position.set(0.55, top + 0.05, 0);
+    for (let i = 0; i < 4; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.03, 0.03), metal(brass)); sp.rotation.y = (i / 4) * Math.PI; wheel.add(sp); sp.rotation.x = Math.PI / 2; }
+    body.add(wheel);
+    // Ballast tanks / skids underneath.
+    for (const s of [1, -1]) {
+      const skid = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, half * 1.1, 4, 10), metal(dark));
+      skid.rotation.z = Math.PI / 2; skid.position.set(-0.1, -top * 0.85, s * 0.45);
+      body.add(skid);
+    }
+  }
+
   // Conning tower + periscope
   if (equip.hull !== 'ray') {
     const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.7, 14), P);
     tower.position.set(-0.25, top + 0.15, 0);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.1, 14), toon(steel));
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.1, 14), metal(steel));
     cap.position.set(-0.25, top + 0.52, 0);
-    const peri = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.9, 6), toon(steel));
+    const peri = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.9, 6), metal(steel));
     peri.position.set(-0.1, top + 0.9, 0);
-    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8), toon(steel));
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8), metal(steel));
     lens.rotation.z = Math.PI / 2; lens.position.set(0.02, top + 1.32, 0);
     body.add(tower, cap, peri, lens);
   }
@@ -119,7 +149,7 @@ export function buildSub(equip) {
   } else {
     const ys = equip.engine === 'twin' ? [0.45, -0.45] : [0];
     for (const y of ys) {
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6), toon(dark));
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6), metal(dark));
       shaft.rotation.z = Math.PI / 2; shaft.position.set(-half - 0.15, y, 0);
       const p = propeller(equip.engine === 'twin' ? 4 : 3, equip.engine === 'twin' ? 0.55 : 0.75);
       p.position.set(-half - 0.45, y, 0);
@@ -207,7 +237,7 @@ export function buildSub(equip) {
   // Lamp
   const lampPos = new THREE.Object3D();
   if (equip.lamp === 'search') {
-    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.22, 0.5, 12), toon(dark));
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.22, 0.5, 12), metal(dark));
     l.rotation.z = -Math.PI / 2; l.position.set(half - 0.1, top * 0.55, 0);
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.3, 14), new THREE.MeshBasicMaterial({ color: '#fffbd0' }));
     lens.rotation.y = Math.PI / 2; lens.position.set(half + 0.16, top * 0.55, 0);

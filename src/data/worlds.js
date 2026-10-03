@@ -5,10 +5,11 @@ export const WORLDS = [
   {
     id: 'puddle', name: 'Puddle', blurb: 'Home. Warm, shallow, and full of fish.',
     pos: [0, 0], R: 100, g: 10, atmo: 25, falloff: 80, bed: 0.62, rough: 0.02, swell: 0.55, seed: 11,
+    weather: { base: 0.08, max: 0.75, firstCalm: 70 },
     pal: {
-      waterTop: '#3fe3d2', waterDeep: '#0d5a98', abyss: '#071a45', sand: '#ffdc8f', grass: '#7fdc5a',
-      rock: '#c7745a', rock2: '#e8a070', core: '#ffcf4a', sky: '#8fd8ff', kelp: '#3fbf6a', far: '#2585a8',
-      coral: ['#ff6f91', '#ffc75f', '#c34a97', '#ff9671', '#f9f871', '#7ee8fa'],
+      waterTop: '#3a9c95', waterDeep: '#103e5c', abyss: '#040d1c', sand: '#b4a27c', grass: '#5f7a42',
+      rock: '#6e5444', rock2: '#8c6c55', core: '#e8a43a', sky: '#a9bcc4', kelp: '#4a7a3c', far: '#22536a',
+      coral: ['#b8566a', '#c49a52', '#8a4a74', '#c47a5c', '#a8a65a', '#5aa0a8'],
     },
     mood: { root: 62, scale: [0, 2, 4, 7, 9], tempo: 0.55, wave: 'triangle' },
     features: [
@@ -33,10 +34,11 @@ export const WORLDS = [
   {
     id: 'murk', name: 'Murkmoor', blurb: 'A soupy green world of smugglers and eels.',
     pos: [560, 240], R: 115, g: 10, atmo: 25, falloff: 80, bed: 0.6, rough: 0.026, swell: 0.75, seed: 23,
+    weather: { base: 0.3, max: 0.95, firstCalm: 25 },
     pal: {
-      waterTop: '#8fe08a', waterDeep: '#3a2d6e', abyss: '#130b2c', sand: '#c9b27a', grass: '#7a9c3a',
-      rock: '#6a4c7a', rock2: '#8c6a9c', core: '#b6ff6a', sky: '#c9b6ff', kelp: '#a3d13a', far: '#4d4a7e',
-      coral: ['#d17bff', '#9cff6b', '#ff7bd5', '#6bffd1', '#ffe66b'],
+      waterTop: '#5d7f56', waterDeep: '#251f3a', abyss: '#07060e', sand: '#786b50', grass: '#4d5a2e',
+      rock: '#3f3448', rock2: '#5a4a5e', core: '#9cd65a', sky: '#8f8aa0', kelp: '#6b7a2c', far: '#363250',
+      coral: ['#8a5aa8', '#7aa04e', '#a85a8a', '#4e9a86', '#a8984e'],
     },
     mood: { root: 57, scale: [0, 3, 5, 7, 10], tempo: 0.45, wave: 'sine' },
     features: [
@@ -62,10 +64,11 @@ export const WORLDS = [
   {
     id: 'frost', name: 'Frostfloe', blurb: 'An ice-capped world. Find the holes.',
     pos: [-520, 360], R: 105, g: 9, atmo: 25, falloff: 80, bed: 0.6, rough: 0.022, swell: 0.35, seed: 37,
+    weather: { base: 0.15, max: 0.8, firstCalm: 40 },
     pal: {
-      waterTop: '#86ecff', waterDeep: '#1a4f8f', abyss: '#0a1a3d', sand: '#e8f6ff', grass: '#ffffff',
-      rock: '#6f95c9', rock2: '#a9c9ef', core: '#c9f2ff', sky: '#d6f0ff', kelp: '#5fd3c6', far: '#3d79b3',
-      coral: ['#bff3ff', '#ffffff', '#9ad7ff', '#d6c4ff', '#7fe0ff'],
+      waterTop: '#6aa8b8', waterDeep: '#15385a', abyss: '#040d1e', sand: '#bccad2', grass: '#e2eaee',
+      rock: '#4d6684', rock2: '#7088a0', core: '#a8e0f0', sky: '#b4c4ce', kelp: '#4c8a86', far: '#2d5a80',
+      coral: ['#9ac8d8', '#d8e2e6', '#7ab0d0', '#a89ac8', '#6ab6cc'],
     },
     mood: { root: 64, scale: [0, 2, 4, 7, 11], tempo: 0.4, wave: 'sine' },
     features: [
@@ -87,10 +90,11 @@ export const WORLDS = [
   {
     id: 'ember', name: 'Emberbrine', blurb: 'Hot springs, geysers, and things with teeth.',
     pos: [180, -640], R: 95, g: 11, atmo: 25, falloff: 100, bed: 0.6, rough: 0.03, swell: 0.6, seed: 41,
+    weather: { base: 0.2, max: 0.9, firstCalm: 35 },
     pal: {
-      waterTop: '#ffb27a', waterDeep: '#8a1f4a', abyss: '#2a0716', sand: '#4a3434', grass: '#3a3030',
-      rock: '#5c2a2a', rock2: '#8a3b2b', core: '#ff5a1f', sky: '#ffcf9e', kelp: '#ff8a3d', far: '#8a3355',
-      coral: ['#ffd45a', '#ff6a3d', '#ffa63d', '#ff3d6a', '#fff07a'],
+      waterTop: '#a8704e', waterDeep: '#4a1626', abyss: '#12040a', sand: '#3a2e2a', grass: '#2a2424',
+      rock: '#48261f', rock2: '#6a3424', core: '#ff6a2a', sky: '#bf9a7e', kelp: '#a85a2c', far: '#5a2238',
+      coral: ['#d0a04a', '#c8583a', '#d08a3a', '#b83a52', '#d8c86a'],
     },
     mood: { root: 55, scale: [0, 1, 4, 7, 8], tempo: 0.6, wave: 'triangle' },
     features: [
@@ -115,10 +119,11 @@ export const WORLDS = [
   {
     id: 'maw', name: 'The Maw', blurb: 'Where the dark lives.',
     pos: [-260, 1120], R: 140, g: 10, atmo: 30, falloff: 110, bed: 0.55, rough: 0.03, swell: 1.0, seed: 59,
+    weather: { base: 0.65, max: 1.0, firstCalm: 15 },
     pal: {
-      waterTop: '#6a5be0', waterDeep: '#2a1466', abyss: '#06031a', sand: '#3d2f60', grass: '#4a3a75',
-      rock: '#3b2a5c', rock2: '#5a4386', core: '#ff4ad8', sky: '#7b6be0', kelp: '#b24ad8', far: '#2d2370',
-      coral: ['#ff4ad8', '#7b6bff', '#4affd8', '#ff7ba8', '#c9a3ff'],
+      waterTop: '#3f3a7a', waterDeep: '#190e3a', abyss: '#03010c', sand: '#2a2236', grass: '#3a3052',
+      rock: '#272038', rock2: '#3a2e52', core: '#e84ac8', sky: '#4a4468', kelp: '#7a3a9a', far: '#221c50',
+      coral: ['#b83aa0', '#5a4ab8', '#3aa8a0', '#b85a7a', '#8a6ab8'],
     },
     mood: { root: 50, scale: [0, 1, 3, 7, 8], tempo: 0.35, wave: 'sine' },
     features: [

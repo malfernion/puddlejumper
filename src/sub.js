@@ -113,6 +113,15 @@ export class Sub {
       const rcs = space ? (sp < 20 ? 2.5 : 1) : 1.5;
       ax += (dx / dl) * rcs; ay += (dy / dl) * rcs;
     }
+    // Weather: wind shoves you around above water; at the surface you slide down wave faces.
+    if (!space && subm < 0.95) {
+      const wa = w.weather.windAccel * (1 - subm) * (r < w.R + w.A ? 1 : 0.3);
+      ax += -uy * wa; ay += ux * wa;
+    }
+    if (subm > 0.05 && subm < 0.95 && !iced) {
+      const sl = w.slope(th) * gmag * 2.2 * subm * (1 - subm) * 4;
+      ax -= -uy * sl; ay -= ux * sl;
+    }
     // Cartoon re-entry: thick air brakes a screaming fall into a world.
     if (inAtmo && sp > 26 && r < w.R + w.A && v.x * ux + v.y * uy < 0) {
       const k = (0.9 * (sp - 26)) / sp;

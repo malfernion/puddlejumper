@@ -98,13 +98,13 @@ export class HUD {
       x.beginPath(); x.moveTo(18, 0); x.lineTo(-8, -12); x.lineTo(-3, 0); x.lineTo(-8, 12); x.closePath();
       x.fill(); x.stroke();
       x.restore();
-      x.font = '600 14px Fredoka, sans-serif';
+      x.font = '600 14px "Crimson Pro", serif';
       x.textAlign = 'center';
       x.fillStyle = '#fff8e7';
       x.shadowColor = 'rgba(0,0,0,0.6)'; x.shadowBlur = 4;
       const lx = ax - Math.cos(a) * 34, ly = ay - Math.sin(a) * 26;
       x.fillText(`${w.name}${g.save.lit[w.id] ? ' ★' : ''}`, lx, ly);
-      x.font = '500 12px Fredoka, sans-serif';
+      x.font = '500 12px "Crimson Pro", serif';
       x.fillText(`${dist}`, lx, ly + 15);
       x.shadowBlur = 0;
     }
@@ -275,7 +275,7 @@ export class Shop {
       ['Top speed', s.topSpeed, 18, s.topSpeed.toFixed(1)],
       ['Hull', s.hp, 120, s.hp],
       ['Depth rating', s.depth, 95, s.depth],
-      ['Boost', s.rocketThrust * s.fuel, 102, `${s.fuel}s`],
+      ['Boost', s.rocketThrust * s.fuel, 65, `${s.fuel}s`],
       ['Turning', s.turn, 5, s.turn.toFixed(1)],
       ['Glide', s.glide, 1, s.glide ? s.glide.toFixed(1) : '—'],
       ['Lamp', s.lampRange, 34, s.lampRange],
@@ -332,7 +332,7 @@ export class Chart {
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
     // Paper.
     const bg = x.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
-    bg.addColorStop(0, '#1f2d63'); bg.addColorStop(1, '#0c1233');
+    bg.addColorStop(0, '#2a2a22'); bg.addColorStop(1, '#0e0f0c');
     x.fillStyle = bg; x.fillRect(0, 0, W, H);
     // Fit known worlds.
     const known = g.worlds.filter((w) => g.save.map[w.id].known);
@@ -406,26 +406,26 @@ export class Chart {
       x.fillStyle = pal.core; x.beginPath(); x.arc(cx, cy, Math.max(2, w.R * 0.08 * scale), 0, TAU); x.fill();
       // Markers.
       const seen = (a) => m.seg[Math.floor((((a % TAU) + TAU) % TAU) / segA)] === '1';
-      const label = (a, r, txt, col, font = '600 13px Fredoka') => {
+      const label = (a, r, txt, col, font = '600 13px "Crimson Pro", serif') => {
         const [px, py] = P(w.c.x + Math.cos(a) * r, w.c.y + Math.sin(a) * r);
         x.font = font; x.fillStyle = col; x.textAlign = 'center';
         x.shadowColor = 'rgba(0,0,0,0.7)'; x.shadowBlur = 4;
         x.fillText(txt, px, py);
         x.shadowBlur = 0;
       };
-      for (const p of w.def.ports) if (seen(p.at)) { label(p.at, w.R + 3, '⚓', '#fff8e7', '700 18px Fredoka'); label(p.at, w.R + 3 + 22 / scale, g.portName(p.id), '#f3dfa8'); }
-      for (const p of w.def.npcs) if (seen(p.at)) label(p.at, w.ground(p.at) + 4, '●', '#ffb0e0', '700 12px Fredoka');
-      if (w.def.beacon && (seen(w.def.beacon.at) || g.save.lit[w.id])) label(w.def.beacon.at, w.ground(w.def.beacon.at) + 6, g.save.lit[w.id] ? '★' : '☆', g.save.lit[w.id] ? '#ffe27a' : '#c8c8d8', '700 20px Fredoka');
+      for (const p of w.def.ports) if (seen(p.at)) { label(p.at, w.R + 3, '⚓', '#fff8e7', '700 18px "Crimson Pro", serif'); label(p.at, w.R + 3 + 22 / scale, g.portName(p.id), '#f3dfa8'); }
+      for (const p of w.def.npcs) if (seen(p.at)) label(p.at, w.ground(p.at) + 4, '●', '#ffb0e0', '700 12px "Crimson Pro", serif');
+      if (w.def.beacon && (seen(w.def.beacon.at) || g.save.lit[w.id])) label(w.def.beacon.at, w.ground(w.def.beacon.at) + 6, g.save.lit[w.id] ? '★' : '☆', g.save.lit[w.id] ? '#ffe27a' : '#c8c8d8', '700 20px "Crimson Pro", serif');
       if (w.def.storm && g.storm && g.storm.active) {
         x.strokeStyle = 'rgba(160, 120, 255, 0.6)'; x.lineWidth = 6 * Math.max(0.5, scale); x.setLineDash([10, 8]);
         x.beginPath(); x.arc(cx, cy, (w.influence - 15) * scale, 0, TAU); x.stroke(); x.setLineDash([]);
       }
       // Name.
-      x.font = `700 ${Math.max(16, Math.min(30, 22 * scale * 2))}px Caveat, cursive`;
+      x.font = `700 ${Math.max(16, Math.min(30, 22 * scale * 2))}px "IM Fell English", serif`;
       x.fillStyle = '#f3dfa8'; x.textAlign = 'center';
       x.fillText(`${w.name}${g.save.lit[w.id] ? ' ★' : ''}`, cx, cy - (w.R + w.A + 10) * scale);
       const pct = Math.round((100 * m.seg.split('').filter((q) => q === '1').length) / SEGS);
-      x.font = '500 12px Fredoka'; x.fillStyle = 'rgba(243,223,168,0.7)';
+      x.font = '500 12px "Crimson Pro", serif'; x.fillStyle = 'rgba(243,223,168,0.7)';
       x.fillText(`${pct}% charted`, cx, cy - (w.R + w.A + 10) * scale + 16);
     }
     // The sub.
@@ -434,10 +434,10 @@ export class Chart {
     x.fillStyle = g.save.equip.paint; x.strokeStyle = '#15122e'; x.lineWidth = 2;
     x.beginPath(); x.ellipse(0, 0, 10, 6, 0, 0, TAU); x.fill(); x.stroke();
     x.restore();
-    x.font = '600 12px Fredoka'; x.fillStyle = '#fff8e7'; x.textAlign = 'center';
+    x.font = '600 12px "Crimson Pro", serif'; x.fillStyle = '#fff8e7'; x.textAlign = 'center';
     x.fillText('you', sx, sy - 12);
     // Legend.
-    x.textAlign = 'left'; x.font = '500 13px Fredoka'; x.fillStyle = 'rgba(243,223,168,0.75)';
+    x.textAlign = 'left'; x.font = '500 13px "Crimson Pro", serif'; x.fillStyle = 'rgba(243,223,168,0.75)';
     const lit = Object.keys(g.save.lit).length;
     x.fillText(`★ beacons lit: ${lit} / 5    ⚓ ports    ● curious folk`, 18, H - 20);
   }

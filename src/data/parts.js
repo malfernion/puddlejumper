@@ -31,11 +31,11 @@ export const PARTS = {
 };
 
 export const PAINTS = [
-  ['Sunny', '#ffd23f'], ['Coral', '#ff6b6b'], ['Mint', '#4ee6a8'], ['Lilac', '#b388ff'],
-  ['Tangerine', '#ff9f1c'], ['Bubblegum', '#ff8fd8'], ['Sky', '#5ec8ff'], ['Snow', '#f4f1ea'],
+  ['Mustard', '#c49a2c'], ['Oxblood', '#8a3028'], ['Verdigris', '#4a8a72'], ['Slate', '#5a6478'],
+  ['Rust', '#a85a2a'], ['Navy', '#2a3a5a'], ['Bone', '#d4ccb4'], ['Pitch', '#2a2624'],
 ];
 
-export const STARTER = { hull: 'tincan', engine: 'paddle', fins: 'stubby', rocket: 'fizz', lamp: 'candle', paint: '#ffd23f' };
+export const STARTER = { hull: 'tincan', engine: 'paddle', fins: 'stubby', rocket: 'fizz', lamp: 'candle', paint: '#c49a2c' };
 
 export const part = (slot, id) => PARTS[slot].find((p) => p.id === id);
 
