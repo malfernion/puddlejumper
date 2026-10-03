@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Puddlejumper</title>
+  <meta name="description" content="A tiny-ocean submarine odyssey. Leap, glide and rocket between pocket-sized ocean worlds." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%233ee0d0'/%3E%3Cellipse cx='32' cy='36' rx='18' ry='10' fill='%23ffd23f'/%3E%3Ccircle cx='38' cy='35' r='4' fill='%2398e7ff' stroke='%23b8860b' stroke-width='2'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-left">
+      <div class="meter"><span class="ico">♥</span><div class="bar"><i id="hullBar"></i></div></div>
+      <div class="meter"><span class="ico">🚀</span><div class="bar fuel"><i id="fuelBar"></i></div></div>
+      <div class="chips">
+        <span class="chip" title="Pearls"><b class="pearl"></b><span id="pearls">0</span></span>
+        <span class="chip" title="Beacons lit">★ <span id="beacons">0</span>/5</span>
+        <span class="chip" id="lampChip" title="Lamp (L)">💡</span>
+      </div>
+    </div>
+    <div class="hud-right">
+      <div id="worldName">Puddle</div>
+      <div id="depth">Depth 0</div>
+    </div>
+    <div id="prompt" class="hidden"></div>
+    <div id="toasts"></div>
+    <div id="banner" class="hidden"><div class="b-title"></div><div class="b-sub"></div></div>
+    <div id="warn" class="hidden"></div>
+    <div class="hud-hint">WASD steer · Space boost · E dock · M chart · L lamp · H help</div>
+  </div>
+  <canvas id="arrows"></canvas>
+  <div id="vignette"></div>
+
+  <!-- Dialog -->
+  <div id="dialog" class="modal hidden">
+    <div class="card dlg">
+      <div class="dlg-head">
+        <div class="portrait" id="dlgPortrait">🦦</div>
+        <div>
+          <div class="dlg-name" id="dlgName"></div>
+          <div class="dlg-place" id="dlgPlace"></div>
+        </div>
+      </div>
+      <div class="dlg-text" id="dlgText"></div>
+      <div class="dlg-choices" id="dlgChoices"></div>
+    </div>
+  </div>
+
+  <!-- Drydock -->
+  <div id="shop" class="modal hidden">
+    <div class="card shop">
+      <div class="shop-head">
+        <div>
+          <div class="shop-title">The Drydock</div>
+          <div class="shop-sub" id="shopSub"></div>
+        </div>
+        <div class="chip big"><b class="pearl"></b><span id="shopPearls">0</span></div>
+      </div>
+      <div class="shop-body">
+        <div class="shop-left">
+          <canvas id="preview" width="420" height="300"></canvas>
+          <div class="stats" id="shopStats"></div>
+        </div>
+        <div class="shop-right">
+          <div class="tabs" id="shopTabs"></div>
+          <div class="parts" id="shopParts"></div>
+        </div>
+      </div>
+      <div class="shop-foot"><button class="btn" id="shopClose">Back to the quay (Esc)</button></div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div id="chart" class="modal hidden">
+    <canvas id="chartCanvas"></canvas>
+    <div class="chart-title">Captain's Chart</div>
+    <div class="chart-hint">M or Esc to close · scroll to zoom · drag to pan</div>
+    <button class="btn chart-close" id="chartClose">Close chart</button>
+  </div>
+
+  <!-- Title -->
+  <div id="title" class="modal">
+    <div class="title-wrap">
+      <div class="logo">Puddle<span>jumper</span></div>
+      <div class="tagline">a tiny-ocean submarine odyssey</div>
+      <div class="title-buttons" id="titleButtons"></div>
+      <div class="controls">
+        <div><kbd>W A S D</kbd> / <kbd>←↑↓→</kbd> swim toward a direction</div>
+        <div><kbd>Space</kbd> rocket boost (refills under water)</div>
+        <div><kbd>E</kbd> dock / talk / interact &nbsp; <kbd>L</kbd> lamp &nbsp; <kbd>M</kbd> chart</div>
+        <div>Build speed under water, then leap. Leap hard enough and you'll leave the world.</div>
+      </div>
+      <div class="credit">Headphones recommended · gamepad supported</div>
+    </div>
+  </div>
+
+  <!-- Pause / help -->
+  <div id="pause" class="modal hidden">
+    <div class="card pause">
+      <div class="shop-title">Becalmed</div>
+      <div class="help">
+        <p><b>Swim:</b> WASD / arrows point the way; the sub turns and paddles toward it. "Up" is always away from the core.</p>
+        <p><b>Leap:</b> get up to speed heading for the surface. Boost with <kbd>Space</kbd> while airborne to fly higher, or aim and burn straight up to escape the world entirely.</p>
+        <p><b>Fuel</b> only refills while you're submerged. In space you can nudge yourself with the arrow keys.</p>
+        <p><b>Lamp</b> (<kbd>L</kbd>): anglers in the deep are drawn to light. Darkness is safety… and darkness.</p>
+        <p><b>Depth:</b> every hull has a rating. Past it, the hull groans and leaks.</p>
+        <p><b>Chart</b> (<kbd>M</kbd>): everything you've seen. Ports and beacons appear once found.</p>
+      </div>
+      <div class="pause-buttons">
+        <button class="btn" id="btnResume">Resume (Esc)</button>
+        <button class="btn alt" id="btnTug">Call the tugboat — 30 pearls</button>
+        <button class="btn alt" id="btnMute">Sound: on</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dead -->
+  <div id="dead" class="modal hidden">
+    <div class="card pause">
+      <div class="shop-title">Glub.</div>
+      <div class="dead-text" id="deadText"></div>
+      <button class="btn" id="btnRespawn">Get towed home (Enter)</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
