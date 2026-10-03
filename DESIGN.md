@@ -6,7 +6,8 @@
 
 **Touchstones:** Ecco the Dolphin (momentum, leaping), Subnautica (depth = danger, upgrade-gated
 exploration), Sunless Sea (ports, odd characters, text encounters with choices, a chart that
-fills in), all filtered through a bright toy-box / picture-book look.
+fills in), rendered as a grimy, weathered diorama: storm-tossed fractal seas, rust and barnacles,
+lamplit stilt-towns, and tiny worlds hanging in the dark.
 
 ## Pillars
 
@@ -76,7 +77,7 @@ Rocket fuel only refills while submerged, so every leap is a commitment.
 | **Emberbrine** | hot-spring orange | geysers that launch you, Cinder Spa, anglers in a deep trench | Kettle (skilled) or Comet; Bathysphere for the beacon |
 | **The Maw** | dark violet | storm wall until four beacons are lit; the kraken | 4 beacons |
 
-## Creatures (all procedural 3D with outlined toon shading)
+## Creatures (all procedural 3D, PBR with procedural grime)
 
 - **Whale (Old Hum)**: huge and friendly. Circles Puddle and breaches with enormous splashes;
   swim in its slipstream for a speed boost.
@@ -109,3 +110,22 @@ example, Ida's ticking crate goes from Gloomwharf to Pengwyn Point in exchange f
   low-passed under water).
 - GitHub Actions deploys to GitHub Pages.
 - `?debug` turns on 1–5 to warp to a world, P for pearls and G for god mode.
+
+## Weather and look (art pass 2)
+
+- **Sea state.** The swell is an 11-octave sum of Stokes-like waves (`cos φ + 0.32 cos 2φ` for sharp
+  crests) on a 1440-segment surface. Amplitude scales with the world's weather, so a storm turns a
+  glassy sea into a heaving one that throws the sub and the flotsam around.
+- **Weather cycle** per world (calm → storm → calm, with per-world base and peak levels). Storm level
+  drives wind force, rain streaks, lightning with distance-delayed thunder, cloud cover and colour,
+  scene light, fog, the surface whitecap shader, kelp sway, the wind and rain audio layers, and a
+  minor-mode shift in the generative music.
+- **Clouds** are five annular layers at different depths. Each fragment does a 5-octave noise lookup
+  on a circle in noise space (so there's no seam), shades by comparing density further "up", and
+  thresholds by cover. Together the layers give a volumetric parallax deck you can fly through.
+- **Materials.** MeshStandard with world-space grime injected via `onBeforeCompile`: mottling,
+  streaks running toward the core, rust tint in crevices, roughness breakup, and animated caustics
+  below the waterline. Post-processing applies ACES, then a grade pass (desaturation, split tone,
+  vignette, grain, slight chromatic aberration, lightning flash).
+- **Flotsam** (barrels, buoys, logs, crates) are circle-collider rigid bodies with buoyancy,
+  wave-slope drift, wind, terrain and ice collision, and impulse exchange with the sub and each other.
