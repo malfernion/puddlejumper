@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { TAU, mulberry32 } from './util.js';
 import { toon, metal, woodMat, stone, glowSprite, addEyes } from './toon.js';
 
@@ -205,6 +206,35 @@ function penguin() {
   return p;
 }
 
+/**
+ * Collapse every static, childless mesh under `root` into one merged mesh per material.
+ * A port is built from hundreds of small parts; this turns them into a couple of dozen draw calls.
+ */
+function mergeStatic(root) {
+  root.updateMatrixWorld(true);
+  const inv = root.matrixWorld.clone().invert();
+  const buckets = new Map();
+  const remove = [];
+  root.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh || o.children.length || Array.isArray(o.material)) return;
+    for (let p = o; p && p !== root; p = p.parent) if (p.userData.spin !== undefined || p.userData.waddle !== undefined) return;
+    let geo = o.geometry.clone().applyMatrix4(inv.clone().multiply(o.matrixWorld));
+    for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k);
+    if (!geo.attributes.normal) geo.computeVertexNormals();
+    if (!geo.attributes.uv) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+    if (!geo.index) geo.setIndex([...Array(geo.attributes.position.count).keys()]);
+    const key = o.material.uuid;
+    if (!buckets.has(key)) buckets.set(key, { m: o.material, gs: [] });
+    buckets.get(key).gs.push(geo);
+    remove.push(o);
+  });
+  for (const o of remove) o.parent.remove(o);
+  for (const { m, gs } of buckets.values()) {
+    const merged = mergeGeometries(gs, false);
+    if (merged) root.add(new THREE.Mesh(merged, m));
+  }
+}
+
 /** A town on stilts sitting over the surface. */
 export function buildPort(w, port) {
   const rng = mulberry32(Math.floor(port.at * 1000) + 7);
@@ -329,6 +359,7 @@ export function buildPort(w, port) {
     cargo(-3, 1.8);
   }
   g.userData.smoke = smoke;
+  mergeStatic(g);
   w.place(g, port.at, w.R);
   w.group.add(g);
   return g;

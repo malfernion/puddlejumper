@@ -51,7 +51,7 @@ const SUN_COL = new THREE.Color('#fff1dc');
 class Game {
   constructor() {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
     this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
@@ -213,7 +213,7 @@ class Game {
 
   resize() {
     this.renderer.setSize(innerWidth, innerHeight);
-    this.composer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.composer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
     this.composer.setSize(innerWidth, innerHeight);
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
@@ -656,7 +656,9 @@ class Game {
         for (const p of this.pickups) if (p.w === w) p.update(dt);
         for (let s = 0; s < 2; s++) for (const f of w.floaters) f.step(dt / 2, this.sub, this, w.floaters);
       }
-      if (visible) for (const f of w.floaters) f.render(w.t);
+      // Whole-world culling: much of each world opts out of per-mesh frustum culling.
+      w.group.visible = visible;
+      for (const f of w.floaters) { f.root.visible = visible; if (visible) f.render(w.t); }
     }
   }
 
